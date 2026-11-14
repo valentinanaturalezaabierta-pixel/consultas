@@ -70,6 +70,7 @@ input[type=file]{width:100%;color:var(--muted);font:inherit;background:rgba(5,9,
  background:linear-gradient(135deg,#f3d28a,#c28b35 72%,#9d6c28);color:#17110a;box-shadow:0 8px 22px rgba(194,139,53,.18);transition:transform .2s,filter .2s}
 .btn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.06)}
 .btn:disabled{opacity:.6;cursor:wait}
+a.btn{text-align:center;text-decoration:none}
 .btn.sec{background:transparent;color:var(--gold-hi);border:1px solid rgba(217,169,79,.4);box-shadow:none;margin-top:11px;font-weight:500}
 .err{color:var(--danger);font-size:1.08rem;margin-top:12px;min-height:1.2em}
 .aviso{background:rgba(137,85,201,.13);border:1px solid rgba(217,169,79,.55);border-radius:13px;padding:13px 15px;margin-bottom:16px;display:none;color:var(--gold-hi)}
@@ -163,6 +164,16 @@ input[type=file]{width:100%;color:var(--muted);font:inherit;background:rgba(5,9,
   <button class="btn sec" id="atras3">Volver</button>
 </section>
 
+<!-- CONSULTA PERSONAL (WhatsApp) -->
+<section class="paso" id="pW" aria-labelledby="tW">
+  <h2 id="tW" tabindex="-1">Consulta personal</h2>
+  <div class="total"><span id="resumenW"></span><b id="montoW"></b></div>
+  <p id="descW" style="margin-top:14px"></p>
+  <p class="ayuda">Escríbeme por WhatsApp y coordinamos tu día y tu hora. Allí mismo te doy los datos para el pago.</p>
+  <a class="btn" id="waBtn" href="#" target="_blank" rel="noopener">Escribir por WhatsApp</a>
+  <button class="btn sec" id="atrasW">Volver</button>
+</section>
+
 <!-- PASO 4 -->
 <section class="paso hecho" id="p4" aria-labelledby="t4">
   <div class="logo-wrap"><img class="logo" src="logo-soy-shaman.jpg" width="600" height="600" alt="Logo SOY SHAMAN"></div>
@@ -195,8 +206,8 @@ $('nac').max=hoy;$('oNac').max=hoy;
 
 function ir(n){
   document.querySelectorAll('.paso').forEach(p=>p.classList.toggle('on',p.id==='p'+n));
-  $('prog').style.width=(n*25)+'%';
-  $('pasoTxt').textContent='Paso '+n+' de 4';
+  $('prog').style.width=((n==='W'?2:n)*25)+'%';
+  $('pasoTxt').textContent=n==='W'?'Consulta personal':'Paso '+n+' de 4';
   window.scrollTo(0,0);
   const t=$('t'+n);if(t)t.focus({preventScroll:true});
 }
@@ -226,6 +237,15 @@ function pintarOpciones(){
 }
 function elegir(o){
   S.opt=o;
+  if(o.tipo==='whatsapp'){
+    $('resumenW').textContent=o.nombre;
+    const bs=bsDe(o.precio_usd);
+    $('montoW').textContent='$'+Number(o.precio_usd);
+    $('descW').textContent=o.descripcion||'';
+    const msg='Hola, quiero agendar la consulta personal ($'+Number(o.precio_usd)+').';
+    $('waBtn').href='https://wa.me/'+(o.contacto||'584160650749')+'?text='+encodeURIComponent(msg);
+    ir('W');return;
+  }
   $('aviso1').classList.remove('on');
   const box=$('preguntas');box.innerHTML='';
   for(let i=1;i<=o.max_preguntas;i++){
@@ -240,6 +260,7 @@ function elegir(o){
 
 $('otraChk').onchange=e=>{$('otra').hidden=!e.target.checked};
 $('atras2').onclick=()=>ir(1);
+$('atrasW').onclick=()=>ir(1);
 $('atras3').onclick=()=>ir(2);
 
 $('sig2').onclick=()=>{
