@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel · SOY SHAMAN</title>
+<style>
+:root{--suelo:#0b101a;--panel:#131c2b;--panel2:#1a2538;--borde:#33425c;--hueso:#f3ecdc;--tenue:#d0ccc2;--oro:#e6b94f;--turq:#27c5c5;--ok:#7fd48a;--mal:#ff9c7a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--suelo);color:var(--hueso);font:18px/1.5 Georgia,serif}
+main{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.6rem;margin:0}h2{font-size:1.25rem;margin:26px 0 10px;color:var(--oro)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+input,select,textarea{width:100%;background:#0b101a;border:2px solid var(--borde);border-radius:10px;color:var(--hueso);font:inherit;padding:11px 12px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--turq);outline-offset:2px}
+label{display:block;font-weight:700;margin:14px 0 6px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:0;padding:11px 16px;font-weight:700}
+.b1{background:var(--oro);color:#1d1308}.b2{background:var(--panel2);color:var(--hueso);border:2px solid var(--borde)}
+.b3{background:transparent;color:var(--mal);border:2px solid var(--mal)}
+button:disabled{opacity:.5;cursor:wait}
+.card{background:var(--panel);border:2px solid var(--borde);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.card.pend{border-color:var(--oro)}
+.fila{display:flex;flex-wrap:wrap;gap:8px 14px;color:var(--tenue);font-size:.98rem}
+.est{display:inline-block;border-radius:20px;padding:2px 12px;font-size:.92rem;font-weight:700;background:var(--panel2)}
+.est.recibido{color:var(--oro)}.est.pago_verificado,.est.enviado{color:var(--ok)}.est.rechazado{color:var(--mal)}
+.q{background:var(--panel2);border-radius:10px;padding:8px 12px;margin:6px 0;white-space:pre-wrap}
+.acc{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.err{color:var(--mal);min-height:1.3em;margin-top:10px}
+.filtros{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sw{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--panel);border:2px solid var(--borde);border-radius:12px;padding:10px 14px;margin-bottom:8px}
+.sw input{width:26px;height:26px;accent-color:var(--turq)}
+details summary{cursor:pointer;color:var(--turq);margin-top:8px}
+pre{white-space:pre-wrap;background:var(--panel2);border-radius:10px;padding:10px;font:inherit;font-size:.98rem}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<!-- Entrada -->
+<section id="login" hidden>
+  <h1>Panel SOY SHAMAN</h1>
+  <label for="em">Correo</label>
+  <input type="email" id="em" autocomplete="username">
+  <label for="pw">Clave</label>
+  <input type="password" id="pw" autocomplete="current-password">
+  <div class="err" id="errL" role="alert"></div>
+  <button class="b1" id="entrar" style="width:100%;margin-top:8px">Entrar</button>
+</section>
+
+<!-- Panel -->
+<section id="app" hidden>
+  <div class="top"><h1>Solicitudes</h1><button class="b2" id="salir">Salir</button></div>
+  <p id="resumen" style="color:var(--tenue)"></p>
+  <div class="filtros">
+    <select id="fEstado" aria-label="Filtrar por estado">
+      <option value="">Todas</option>
+      <option value="recibido">Por verificar</option>
+      <option value="pago_verificado">Verificadas</option>
+      <option value="enviado">Enviadas</option>
+      <option value="rechazado">Rechazadas</option>
+    </select>
+    <input type="search" id="fBuscar" placeholder="Buscar nombre o correo" aria-label="Buscar">
+  </div>
+  <div class="err" id="err" role="alert"></div>
+  <div id="lista" style="margin-top:12px"></div>
+
+  <h2>Opciones de la página</h2>
+  <p style="color:var(--tenue);font-size:.98rem">Apaga una opción y la gente verá "No disponible por ahora".</p>
+  <div id="opciones"></div>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SB='https://fxmgydfhuznxrxsggqlg.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4bWd5ZGZodXpueHJ4c2dncWxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2NzU2MzIsImV4cCI6MjExMDI1MTYzMn0.s1N-Zq4Q6euOw5ZdP2lN-9FmhQT1TLtEIQWPDJLryVs';
+const sb=supabase.createClient(SB,KEY);
+const $=id=>document.getElementById(id);
+const NOM={sencilla:'Consulta sencilla',estudio:'Estudio de tarot y numerología',personal:'Consulta personal'};
+let datos=[];
+
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+const fecha=f=>new Date(f).toLocaleString('es-VE',{timeZone:'America/Caracas',dateStyle:'short',timeStyle:'short'});
+const dnac=f=>f?new Date(f+'T12:00:00').toLocaleDateString('es-VE'):'—';
+
+async function iniciar(){
+  const{data}=await sb.auth.getSession();
+  data.session?mostrarApp():mostrarLogin();
+}
+function mostrarLogin(){$('login').hidden=false;$('app').hidden=true}
+async function mostrarApp(){$('login').hidden=true;$('app').hidden=false;await cargar();await cargarOpciones()}
+
+$('entrar').onclick=async()=>{
+  $('errL').textContent='';
+  const b=$('entrar');b.disabled=true;
+  const{error}=await sb.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});
+  b.disabled=false;
+  if(error){$('errL').textContent='Correo o clave incorrectos.';return}
+  $('pw').value='';mostrarApp();
+};
+$('salir').onclick=async()=>{await sb.auth.signOut();mostrarLogin()};
+
+async function cargar(){
+  $('err').textContent='';
+  const{data,error}=await sb.from('solicitudes_tarot').select('*').order('fecha_solicitud',{ascending:false}).limit(300);
+  if(error){$('err').textContent='No se pudo cargar. Si el correo no es el de administrador, no verás nada.';return}
+  datos=data;pintar();
+}
+['fEstado','fBuscar'].forEach(i=>{$(i).oninput=pintar});
+
+function pintar(){
+  const est=$('fEstado').value,q=$('fBuscar').value.trim().toLowerCase();
+  const pend=datos.filter(d=>d.estado==='recibido').length;
+  $('resumen').textContent=datos.length+' solicitudes · '+pend+' por verificar';
+  const box=$('lista');box.innerHTML='';
+  const f=datos.filter(d=>(!est||d.estado===est)&&(!q||(d.nombre+' '+d.email).toLowerCase().includes(q)));
+  if(!f.length){box.appendChild(el('p','', 'No hay solicitudes con ese filtro.'));return}
+  f.forEach(d=>box.appendChild(tarjeta(d)));
+}
+
+function tarjeta(d){
+  const c=el('div','card'+(d.estado==='recibido'?' pend':''));
+  const h=el('div','fila');
+  const e=el('span','est '+d.estado,d.estado==='recibido'?'Por verificar':d.estado.replace('_',' '));
+  h.append(e,el('span','',fecha(d.fecha_solicitud)));c.appendChild(h);
+  const t=el('h3','',d.nombre);t.style.margin='8px 0 2px';c.appendChild(t);
+  c.appendChild(el('div','fila',(NOM[d.servicio]||d.servicio)+' · $'+Number(d.monto_usd)+(d.monto_bs?' · Bs. '+Number(d.monto_bs).toLocaleString('es-VE'):'')));
+  c.appendChild(el('div','fila',d.email+(d.whatsapp?' · '+d.whatsapp:'')));
+  c.appendChild(el('div','fila','Nació: '+dnac(d.fecha_nacimiento)));
+  if(d.otra_persona_nombre)c.appendChild(el('div','fila','Otra persona: '+d.otra_persona_nombre+' ('+(d.otra_persona_parentesco||'')+') · nació: '+dnac(d.otra_persona_fecha_nacimiento)));
+  c.appendChild(el('div','fila','Pago: '+(d.metodo_pago||'—')+(d.referencia_pago?' · ref. '+d.referencia_pago:'')));
+  (d.preguntas||[]).forEach((p,i)=>c.appendChild(el('div','q',(i+1)+'. '+p)));
+  if(d.informe_texto){
+    const dt=el('details');dt.appendChild(el('summary','','Ver informe enviado'));dt.appendChild(el('pre','',d.informe_texto));c.appendChild(dt);
+  }
+  const a=el('div','acc');
+  if(d.captura_url){
+    const v=el('button','b2','Ver captura');
+    v.onclick=async()=>{
+      const w=window.open('','_blank');
+      const{data,error}=await sb.storage.from('capturas').createSignedUrl(d.captura_url,3600);
+      if(error||!data){if(w)w.close();$('err').textContent='No se pudo abrir la captura.';return}
+      if(w)w.location=data.signedUrl;else location.href=data.signedUrl;
+    };
+    a.appendChild(v);
+  }
+  if(d.estado==='recibido'||d.estado==='rechazado'){
+    const ok=el('button','b1','Verificar pago');ok.onclick=()=>cambiar(d,'pago_verificado',ok);a.appendChild(ok);
+  }
+  if(d.estado==='recibido'){
+    const no=el('button','b3','Rechazar');no.onclick=()=>{if(confirm('¿Rechazar esta solicitud?'))cambiar(d,'rechazado',no)};a.appendChild(no);
+  }
+  if(d.estado==='pago_verificado'){
+    c.appendChild(el('div','fila','Verificado: '+fecha(d.fecha_verificacion)));
+  }
+  c.appendChild(a);
+  return c;
+}
+
+async function cambiar(d,estado,btn){
+  btn.disabled=true;$('err').textContent='';
+  const{error}=await sb.from('solicitudes_tarot').update({estado}).eq('id_solicitud',d.id_solicitud);
+  if(error){$('err').textContent='No se pudo cambiar el estado.';btn.disabled=false;return}
+  await cargar();
+}
+
+async function cargarOpciones(){
+  const{data,error}=await sb.from('config_consultas').select('id,nombre,precio_usd,activo').order('orden');
+  const box=$('opciones');box.innerHTML='';
+  if(error||!data)return;
+  data.forEach(o=>{
+    const r=el('label','sw');r.style.fontWeight='400';r.style.margin='0 0 8px';
+    r.appendChild(el('span','',o.nombre+' · $'+Number(o.precio_usd)));
+    const k=document.createElement('input');k.type='checkbox';k.checked=o.activo;
+    k.onchange=async()=>{
+      k.disabled=true;
+      const{error}=await sb.from('config_consultas').update({activo:k.checked,updated_at:new Date().toISOString()}).eq('id',o.id);
+      if(error){k.checked=!k.checked;$('err').textContent='No se pudo cambiar la opción.'}
+      k.disabled=false;
+    };
+    r.appendChild(k);box.appendChild(r);
+  });
+}
+iniciar();
+</script>
+</body>
+</html>
