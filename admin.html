@@ -27,7 +27,13 @@ button:disabled{opacity:.5;cursor:wait}
 .q{background:var(--panel2);border-radius:10px;padding:8px 12px;margin:6px 0;white-space:pre-wrap}
 .acc{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .err{color:var(--mal);min-height:1.3em;margin-top:10px}
-.filtros{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.tab{background:var(--panel);color:var(--tenue);border:2px solid var(--borde);padding:8px 14px;font-weight:400}
+.tab.on{background:var(--oro);color:#1d1308;border-color:var(--oro);font-weight:700}
+summary.res{list-style:none;cursor:pointer;color:var(--hueso);margin-top:0}
+summary.res::-webkit-details-marker{display:none}
+.l1{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:1.1rem}
+.card[open] summary.res{border-bottom:1px solid var(--borde);padding-bottom:10px;margin-bottom:10px}
 .sw{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--panel);border:2px solid var(--borde);border-radius:12px;padding:10px 14px;margin-bottom:8px}
 .sw input{width:26px;height:26px;accent-color:var(--turq)}
 details summary{cursor:pointer;color:var(--turq);margin-top:8px}
@@ -52,16 +58,8 @@ pre{white-space:pre-wrap;background:var(--panel2);border-radius:10px;padding:10p
 <section id="app" hidden>
   <div class="top"><h1>Solicitudes</h1><button class="b2" id="salir">Salir</button></div>
   <p id="resumen" style="color:var(--tenue)"></p>
-  <div class="filtros">
-    <select id="fEstado" aria-label="Filtrar por estado">
-      <option value="">Todas</option>
-      <option value="recibido">Por verificar</option>
-      <option value="pago_verificado">Verificadas</option>
-      <option value="enviado">Enviadas</option>
-      <option value="rechazado">Rechazadas</option>
-    </select>
-    <input type="search" id="fBuscar" placeholder="Buscar nombre o correo" aria-label="Buscar">
-  </div>
+  <div class="tabs" id="tabs"></div>
+  <input type="search" id="fBuscar" placeholder="Buscar por nombre o correo (en todas)" aria-label="Buscar">
   <div class="err" id="err" role="alert"></div>
   <div id="lista" style="margin-top:12px"></div>
 
@@ -107,25 +105,34 @@ async function cargar(){
   if(error){$('err').textContent='No se pudo cargar. Si el correo no es el de administrador, no verás nada.';return}
   datos=data;pintar();
 }
-['fEstado','fBuscar'].forEach(i=>{$(i).oninput=pintar});
+$('fBuscar').oninput=pintar;
+let fEst='recibido';
+const ETQ={recibido:'Por verificar',pago_verificado:'Verificada',enviado:'Enviada',rechazado:'Rechazada'};
+const TABS=[['recibido','Por verificar'],['pago_verificado','Verificadas'],['enviado','Enviadas'],['rechazado','Rechazadas'],['','Todas']];
 
 function pintar(){
-  const est=$('fEstado').value,q=$('fBuscar').value.trim().toLowerCase();
+  const q=$('fBuscar').value.trim().toLowerCase();
+  const tb=$('tabs');tb.innerHTML='';
+  TABS.forEach(([k,n])=>{
+    const cnt=datos.filter(d=>!k||d.estado===k).length;
+    const bt=el('button','tab'+(k===fEst&&!q?' on':''),n+' ('+cnt+')');
+    bt.onclick=()=>{fEst=k;$('fBuscar').value='';pintar()};tb.appendChild(bt);
+  });
   const pend=datos.filter(d=>d.estado==='recibido').length;
-  $('resumen').textContent=datos.length+' solicitudes · '+pend+' por verificar';
+  $('resumen').textContent=pend?pend+(pend===1?' pago por verificar':' pagos por verificar'):'No hay pagos por verificar';
   const box=$('lista');box.innerHTML='';
-  const f=datos.filter(d=>(!est||d.estado===est)&&(!q||(d.nombre+' '+d.email).toLowerCase().includes(q)));
-  if(!f.length){box.appendChild(el('p','', 'No hay solicitudes con ese filtro.'));return}
+  const f=datos.filter(d=>q?(d.nombre+' '+d.email).toLowerCase().includes(q):(!fEst||d.estado===fEst));
+  if(!f.length){box.appendChild(el('p','','No hay solicitudes aquí.'));return}
   f.forEach(d=>box.appendChild(tarjeta(d)));
 }
 
 function tarjeta(d){
-  const c=el('div','card'+(d.estado==='recibido'?' pend':''));
-  const h=el('div','fila');
-  const e=el('span','est '+d.estado,d.estado==='recibido'?'Por verificar':d.estado.replace('_',' '));
-  h.append(e,el('span','',fecha(d.fecha_solicitud)));c.appendChild(h);
-  const t=el('h3','',d.nombre);t.style.margin='8px 0 2px';c.appendChild(t);
-  c.appendChild(el('div','fila',(NOM[d.servicio]||d.servicio)+' · $'+Number(d.monto_usd)+(d.monto_bs?' · Bs. '+Number(d.monto_bs).toLocaleString('es-VE'):'')));
+  const c=el('details','card'+(d.estado==='recibido'?' pend':''));
+  const sm=el('summary','res');
+  const l1=el('div','l1');l1.append(el('b','',d.nombre),el('span','est '+d.estado,ETQ[d.estado]||d.estado));
+  sm.append(l1,el('div','fila',(NOM[d.servicio]||d.servicio)+' · $'+Number(d.monto_usd)+' · '+fecha(d.fecha_solicitud)));
+  c.appendChild(sm);
+  if(d.monto_bs)c.appendChild(el('div','fila','Monto en Bs: '+Number(d.monto_bs).toLocaleString('es-VE')));
   c.appendChild(el('div','fila',d.email+(d.whatsapp?' · '+d.whatsapp:'')));
   c.appendChild(el('div','fila','Nació: '+dnac(d.fecha_nacimiento)));
   if(d.otra_persona_nombre)c.appendChild(el('div','fila','Otra persona: '+d.otra_persona_nombre+' ('+(d.otra_persona_parentesco||'')+') · nació: '+dnac(d.otra_persona_fecha_nacimiento)));
