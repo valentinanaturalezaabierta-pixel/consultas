@@ -108,28 +108,31 @@ async function cargar(){
 $('fBuscar').oninput=pintar;
 let fEst='recibido';
 const ETQ={recibido:'Por verificar',pago_verificado:'Verificada',enviado:'Enviada',rechazado:'Rechazada'};
-const TABS=[['recibido','Por verificar'],['pago_verificado','Verificadas'],['enviado','Enviadas'],['rechazado','Rechazadas'],['','Todas']];
+const TABS=[['urgente','Urgentes'],['recibido','Por verificar'],['pago_verificado','Verificadas'],['enviado','Enviadas'],['rechazado','Rechazadas'],['','Todas']];
 
+const coincide=(d,k)=>k==='urgente'?d.nivel_atencion===1:(!k||d.estado===k);
 function pintar(){
   const q=$('fBuscar').value.trim().toLowerCase();
   const tb=$('tabs');tb.innerHTML='';
   TABS.forEach(([k,n])=>{
-    const cnt=datos.filter(d=>!k||d.estado===k).length;
+    const cnt=datos.filter(d=>coincide(d,k)).length;
     const bt=el('button','tab'+(k===fEst&&!q?' on':''),n+' ('+cnt+')');
     bt.onclick=()=>{fEst=k;$('fBuscar').value='';pintar()};tb.appendChild(bt);
   });
   const pend=datos.filter(d=>d.estado==='recibido').length;
-  $('resumen').textContent=pend?pend+(pend===1?' pago por verificar':' pagos por verificar'):'No hay pagos por verificar';
+  const urg=datos.filter(d=>d.nivel_atencion===1).length;
+  $('resumen').textContent=(urg?'⚠ '+urg+(urg===1?' caso urgente · ':' casos urgentes · '):'')+(pend?pend+(pend===1?' pago por verificar':' pagos por verificar'):'No hay pagos por verificar');
+  $('resumen').style.color=urg?'var(--mal)':'var(--tenue)';
   const box=$('lista');box.innerHTML='';
-  const f=datos.filter(d=>q?(d.nombre+' '+d.email).toLowerCase().includes(q):(!fEst||d.estado===fEst));
+  const f=datos.filter(d=>q?(d.nombre+' '+d.email).toLowerCase().includes(q):coincide(d,fEst));
   if(!f.length){box.appendChild(el('p','','No hay solicitudes aquí.'));return}
   f.forEach(d=>box.appendChild(tarjeta(d)));
 }
 
 function tarjeta(d){
-  const c=el('details','card'+(d.estado==='recibido'?' pend':''));
+  const c=el('details','card'+(d.estado==='recibido'||d.nivel_atencion===1?' pend':''));
   const sm=el('summary','res');
-  const l1=el('div','l1');l1.append(el('b','',d.nombre),el('span','est '+d.estado,ETQ[d.estado]||d.estado));
+  const l1=el('div','l1');l1.append(el('b','',d.nombre),el('span','est '+(d.nivel_atencion===1?'rechazado':d.estado),d.nivel_atencion===1?'URGENTE':(ETQ[d.estado]||d.estado)));
   sm.append(l1,el('div','fila',(NOM[d.servicio]||d.servicio)+' · $'+Number(d.monto_usd)+' · '+fecha(d.fecha_solicitud)));
   c.appendChild(sm);
   if(d.monto_bs)c.appendChild(el('div','fila','Monto en Bs: '+Number(d.monto_bs).toLocaleString('es-VE')));
